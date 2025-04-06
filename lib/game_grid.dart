@@ -5,8 +5,10 @@ class Piece {
   int row;
   int col;
   final Color color;
+  final String type;  // Type of piece (Flag, Bomb, Spy, etc.)
+  final int typeValue;  // Value associated with the piece type
 
-  Piece(this.row, this.col, this.color);
+  Piece(this.row, this.col, this.color, this.type, this.typeValue);
 
   // Move the piece to a new position
   void move(int newRow, int newCol) {
@@ -18,35 +20,69 @@ class Piece {
 class Square {
   final Color backgroundColor;
   final Color pieceColor;
+  final String pieceType;
+  final int pieceTypeValue;
 
-  Square({required this.backgroundColor, required this.pieceColor});
+  Square({
+    required this.backgroundColor,
+    required this.pieceColor,
+    required this.pieceType,
+    required this.pieceTypeValue,
+  });
 }
 
 class PieceWidget extends StatelessWidget {
   final Color color;
   final bool isSelected;
   final Function() onTap;
+  final String type;
+  final int typeValue;
 
   const PieceWidget({
     Key? key,
     required this.color,
     required this.isSelected,
     required this.onTap,
+    required this.type,
+    required this.typeValue,
   }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: onTap,  // Handle piece selection
+      onTap: onTap,
       child: Container(
-        width: 60.0,  // Size set to 60x60
+        width: 60.0,
         height: 60.0,
         decoration: BoxDecoration(
-          color: color,  // Piece color (green or red)
+          color: color,
           borderRadius: BorderRadius.circular(8.0),
           border: isSelected
-              ? Border.all(color: Colors.white, width: 3.0)  // White border when selected
-              : null,  // No border when not selected
+              ? Border.all(color: Colors.white, width: 3.0)
+              : null,
+        ),
+        child: Center(
+          child: typeValue != -1 && typeValue != 0
+              ? Text.rich(
+                  TextSpan(
+                    children: [
+                      TextSpan(
+                        text: '$type\n',
+                        style: TextStyle(fontSize: 12, color: Colors.white),
+                      ),
+                      TextSpan(
+                        text: '$typeValue',
+                        style: TextStyle(fontSize: 16, color: Colors.white),
+                      ),
+                    ],
+                  ),
+                  textAlign: TextAlign.center,
+                )
+              : Text(
+                  type,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 12, color: Colors.white),
+                ),
         ),
       ),
     );
@@ -55,7 +91,7 @@ class PieceWidget extends StatelessWidget {
 
 class SquareWidget extends StatelessWidget {
   final Square square;
-  final VoidCallback onPieceTap; // Handle tapping the square for selection or movement
+  final VoidCallback onPieceTap;
   final bool isSelected;
 
   const SquareWidget({
@@ -68,24 +104,23 @@ class SquareWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: onPieceTap,  // When square is tapped, trigger selection or movement
+      onTap: onPieceTap,
       child: Container(
         width: 80.0,
         height: 80.0,
         margin: const EdgeInsets.all(1.0),
         decoration: BoxDecoration(
-          color: square.backgroundColor,  // Background color of the square
-          border: Border.all(
-            color: Colors.black,  // Black border color
-            width: 1.0,
-          ),
+          color: square.backgroundColor,
+          border: Border.all(color: Colors.black, width: 1.0),
         ),
         child: (square.pieceColor != Colors.transparent)
             ? Center(
                 child: PieceWidget(
                   color: square.pieceColor,
                   isSelected: isSelected,
-                  onTap: onPieceTap,  // Make the piece widget clickable
+                  onTap: onPieceTap,
+                  type: square.pieceType,
+                  typeValue: square.pieceTypeValue,
                 ),
               )
             : Container(),
@@ -102,59 +137,47 @@ class GameGrid extends ConsumerStatefulWidget {
 }
 
 class _GameGridState extends ConsumerState<GameGrid> {
-  Piece? selectedPiece; // To track the selected piece
-  Piece? previousPiece; // To track the previously selected piece
+  Piece? selectedPiece;
+  Piece? previousPiece;
 
+  void selectPiece(Piece? piece) {
+    setState(() {
+      if (selectedPiece == piece) {
+        selectedPiece = null;
+        previousPiece = null;
+      } else {
+        previousPiece = selectedPiece;
+        selectedPiece = piece;
+      }
+    });
+  }
 
-  // Handle piece selection
- void selectPiece(Piece? piece) {
-   setState(() {
-     // Deselect the piece if it's already selected
-     if (selectedPiece == piece) {
-       // If the same piece is clicked, deselect it and reset previousPiece
-       selectedPiece = null;
-       previousPiece = null;
-     } else {
-       previousPiece = selectedPiece; // Save the currently selected piece as previous
-       selectedPiece = piece; // Select the new piece
-     }
-   });
- }
-
-  // Handle piece movement
   void movePiece(int row, int col) {
     if (selectedPiece == null) return;
 
-    // Rules for moving:
-    // 1. Can't move outside the grid
-    if (row < 0 || row >= 8 || col < 0 || col >= 8) {
-      return;
-    }
-
-    // 2. Can't move to blue squares
     final gridState = ref.read(gridProvider);
-    if (gridState[row][col].backgroundColor == Colors.blue) {
-      return;
-    }
+    if (gridState[row][col].backgroundColor == Colors.blue) return;
 
-    // 3. Can only move one step in any direction (up, down, left, right)
     if ((selectedPiece!.row - row).abs() > 1 || (selectedPiece!.col - col).abs() > 1 ||
         (selectedPiece!.row != row && selectedPiece!.col != col)) {
       return;
     }
 
-    // Move the piece to the new position
     setState(() {
       gridState[selectedPiece!.row][selectedPiece!.col] = Square(
         backgroundColor: gridState[selectedPiece!.row][selectedPiece!.col].backgroundColor,
-        pieceColor: Colors.transparent, // Clear the previous square
+        pieceColor: Colors.transparent,
+        pieceType: "",
+        pieceTypeValue: -1,
       );
-      selectedPiece!.move(row, col); // Update the piece position
+      selectedPiece!.move(row, col);
       gridState[row][col] = Square(
         backgroundColor: gridState[row][col].backgroundColor,
-        pieceColor: selectedPiece!.color, // Place the piece on the new square
+        pieceColor: selectedPiece!.color,
+        pieceType: selectedPiece!.type,
+        pieceTypeValue: selectedPiece!.typeValue,
       );
-      selectedPiece = null;  // Deselect the piece after moving
+      selectedPiece = null;
     });
   }
 
@@ -177,24 +200,26 @@ class _GameGridState extends ConsumerState<GameGrid> {
                     square: gridState[rowIndex][colIndex],
                     onPieceTap: () {
                       if (gridState[rowIndex][colIndex].pieceColor != Colors.transparent) {
-                        final piece = gridState[rowIndex][colIndex].pieceColor == Colors.green
-                            ? Piece(rowIndex, colIndex, Colors.green)
-                            : Piece(rowIndex, colIndex, Colors.red);
+                        final piece = Piece(
+                          rowIndex,
+                          colIndex,
+                          gridState[rowIndex][colIndex].pieceColor,
+                          gridState[rowIndex][colIndex].pieceType,
+                          gridState[rowIndex][colIndex].pieceTypeValue,
+                        );
 
-                        // Deselect the piece if it's already selected and clicked again
-                        if (selectedPiece != null && (selectedPiece!.row == piece!.row && selectedPiece!.col == piece!.col)) {
+                        if (selectedPiece != null && (selectedPiece!.row == piece.row && selectedPiece!.col == piece.col)) {
                           selectPiece(null);
                         } else {
-                          selectPiece(piece); // Select a new piece
+                          selectPiece(piece);
                         }
                       } else if (selectedPiece != null) {
-                        // Move the selected piece to this square
                         movePiece(rowIndex, colIndex);
                       }
                     },
                     isSelected: selectedPiece != null &&
                         selectedPiece!.row == rowIndex &&
-                        selectedPiece!.col == colIndex
+                        selectedPiece!.col == colIndex,
                   );
                 }),
               );
@@ -207,54 +232,65 @@ class _GameGridState extends ConsumerState<GameGrid> {
 }
 
 final gridProvider = StateProvider<List<List<Square>>>((ref) {
-  // Initialize the grid with default colors (gray)
   List<List<Square>> grid = List.generate(8, (rowIndex) {
     return List.generate(8, (colIndex) {
       if ((rowIndex == 3 && colIndex == 2) || (rowIndex == 4 && colIndex == 2) ||
           (rowIndex == 3 && colIndex == 5) || (rowIndex == 4 && colIndex == 5)) {
-        return Square(backgroundColor: Colors.blue, pieceColor: Colors.transparent);
+        return Square(backgroundColor: Colors.blue, pieceColor: Colors.transparent, pieceType: "", pieceTypeValue: -1);
       }
-      return Square(backgroundColor: Colors.grey, pieceColor: Colors.transparent); // Default square color
+      return Square(
+        backgroundColor: Colors.grey,
+        pieceColor: Colors.transparent,
+        pieceType: "",
+        pieceTypeValue: -1,
+      );
     });
   });
 
-  // Define green team pieces
   List<Piece> greenPieces = [
-    Piece(0, 2, Colors.green),
-    Piece(0, 3, Colors.green),
-    Piece(0, 4, Colors.green),
-    Piece(0, 5, Colors.green),
-    Piece(1, 2, Colors.green),
-    Piece(1, 3, Colors.green),
-    Piece(1, 4, Colors.green),
-    Piece(1, 5, Colors.green),
-    Piece(2, 3, Colors.green),
-    Piece(2, 4, Colors.green),
+    Piece(0, 2, Colors.green, '⚑ Flag', -1),
+    Piece(0, 3, Colors.green, '💣Bomb', 0),
+    Piece(0, 4, Colors.green, '💣Bomb', 0),
+    Piece(0, 5, Colors.green, '🕵Spy', 1),
+    Piece(1, 2, Colors.green, '🥾Scout', 2),
+    Piece(1, 3, Colors.green, '🥾Scout', 2),
+    Piece(1, 4, Colors.green, '🛠Miner', 3),
+    Piece(1, 5, Colors.green, '🛠Miner', 3),
+    Piece(2, 3, Colors.green, '🪖Soldier', 4),
+    Piece(2, 4, Colors.green, '👨🏼‍✈️Major', 5),
   ];
 
-  // Define red team pieces
   List<Piece> redPieces = [
-    Piece(5, 3, Colors.red),
-    Piece(5, 4, Colors.red),
-    Piece(6, 2, Colors.red),
-    Piece(6, 3, Colors.red),
-    Piece(6, 4, Colors.red),
-    Piece(6, 5, Colors.red),
-    Piece(7, 2, Colors.red),
-    Piece(7, 3, Colors.red),
-    Piece(7, 4, Colors.red),
-    Piece(7, 5, Colors.red),
+    Piece(6, 2, Colors.red, '⚑ Flag', -1),
+    Piece(5, 3, Colors.red, '💣Bomb', 0),
+    Piece(5, 4, Colors.red, '💣Bomb', 0),
+    Piece(6, 3, Colors.red, '🕵Spy', 1),
+    Piece(6, 4, Colors.red, '🥾Scout', 2),
+    Piece(6, 5, Colors.red, '🥾Scout', 2),
+    Piece(7, 2, Colors.red, '🛠Miner', 3),
+    Piece(7, 3, Colors.red, '🛠Miner', 3),
+    Piece(7, 4, Colors.red, '🪖Soldier', 4),
+    Piece(7, 5, Colors.red, '👨🏼‍✈️Major', 5),
   ];
 
-  // Place the green and red pieces on the grid
+
   for (var piece in greenPieces) {
-    grid[piece.row][piece.col] = Square(backgroundColor: Colors.grey, pieceColor: piece.color);
+    grid[piece.row][piece.col] = Square(
+      backgroundColor: Colors.grey,
+      pieceColor: piece.color,
+      pieceType: piece.type,
+      pieceTypeValue: piece.typeValue,
+    );
   }
 
   for (var piece in redPieces) {
-    grid[piece.row][piece.col] = Square(backgroundColor: Colors.grey, pieceColor: piece.color);
+    grid[piece.row][piece.col] = Square(
+      backgroundColor: Colors.grey,
+      pieceColor: piece.color,
+      pieceType: piece.type,
+      pieceTypeValue: piece.typeValue,
+    );
   }
 
-  // Return the grid with all pieces placed
   return grid;
 });
