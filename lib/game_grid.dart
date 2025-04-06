@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-
+import 'dart:html' as html;
 enum PieceType {
   empty,
   flag, // ⚑ Flag
@@ -184,13 +184,44 @@ class _GameGridState extends ConsumerState<GameGrid> {
     });
   }
 
+  void performActionAndShowAlert(Color color) {
+        // Example condition: If the action is performed (e.g., piece removal)
+        bool someActionOccurred = true; // Replace with your condition
+
+        String team = "Red";
+        if (color == Colors.green) {
+            team = "Green";
+        }
+
+        if (someActionOccurred) {
+          // Show the alert
+          showDialog(
+            context: context,
+            builder: (context) {
+              return AlertDialog(
+                title: Text(team),
+                content: Text("You won"),
+                actions: [
+                  TextButton(
+                    onPressed: () {
+                      // When "OK" is clicked, reset the state to the original state
+
+                      html.window.location.reload();
+                    },
+                    child: Text('OK'),
+                  ),
+                ],
+              );
+            },
+          );
+        }
+  }
+
   void calculate(Piece selected, Piece piece, int row, int col) {
     final grid = ref.read(gridProvider.notifier);
-    if (((selectedPiece!.row - row).abs() > 1 ||
-            (selectedPiece!.col - col).abs() > 1 ||
-            (selectedPiece!.row != row && selectedPiece!.col != col))) {
+    if (!canMovePiece(row, col)) {
           return;
-        }
+    }
 
         List<List<Square>> currentGrid = [...ref.read(gridProvider)];
          void removeAt(int r, int c) {
@@ -200,13 +231,47 @@ class _GameGridState extends ConsumerState<GameGrid> {
               pieceType: PieceType.empty,
               pieceTypeValue: -1,
             );
+            bool potentialWon = true;
+            for (int i = 0 ; i < 8; i++) {
+                for (int j = 0 ; j < 8; j++) {
+                    if (currentGrid[i][j].pieceColor == Colors.green && currentGrid[i][j].pieceTypeValue > 0) {
+                        potentialWon = false;
+                        break;
+                    }
+                }
+                if (!potentialWon) break;
+            }
+            if (potentialWon) {
+                performActionAndShowAlert(Colors.red);
+                return;
+            }
+            potentialWon = true;
+            for (int i = 0 ; i < 8; i++) {
+                for (int j = 0 ; j < 8; j++) {
+                    if (currentGrid[i][j].pieceColor == Colors.red && currentGrid[i][j].pieceTypeValue > 0) {
+                        potentialWon = false;
+                        break;
+                    }
+                }
+                if (!potentialWon) break;
+            }
+            if (potentialWon) {
+                performActionAndShowAlert(Colors.green);
+                return;
+            }
+
           }
 
     if (piece.typeValue == -1 && piece.type == PieceType.flag) {
       print("win");
+      performActionAndShowAlert(selectedPiece!.color);
+    } else if (piece.typeValue == 0 && selected.type == PieceType.miner) {
+        print("bomb");
+          removeAt(row, col);
+          movePiece(row, col);
     } else if (piece.typeValue == 0) {
-      print("bomb");
-          removeAt(selected.row, selected.col);
+                 print("bomb");
+                     removeAt(selected.row, selected.col);
     } else if (piece.typeValue == 5 && selected.type == PieceType.spy) {
       print("spy"); //
       removeAt(row, col);
@@ -215,8 +280,9 @@ class _GameGridState extends ConsumerState<GameGrid> {
       movePiece(row, col);
     } else if (selected.typeValue == piece.typeValue) {
       print("draw");
+      removeAt(selected.row, selected.col);
       removeAt(row, col);
-          removeAt(selected.row, selected.col);
+
     } else if (selected.typeValue < piece.typeValue) {
       print("lose selected");
       removeAt(selected.row, selected.col);
@@ -235,11 +301,11 @@ class _GameGridState extends ConsumerState<GameGrid> {
 //       }
   }
 
-  void movePiece(int row, int col) {
-    if (selectedPiece == null) return;
+  bool canMovePiece(int row, int col) {
+    if (selectedPiece == null) return false;
 
     final gridState = ref.read(gridProvider);
-    if (gridState[row][col].backgroundColor == Colors.blue) return;
+    if (gridState[row][col].backgroundColor == Colors.blue) return false;
 
     if (isReady) {
 
@@ -249,20 +315,71 @@ class _GameGridState extends ConsumerState<GameGrid> {
           (selectedPiece!.col - col).abs() > 1 ||
           (selectedPiece!.row != row && selectedPiece!.col != col))) {
 
-          if(selectedPiece!.typeValue == PieceType.scout) {
+
+          if(selectedPiece!.type == PieceType.scout) {
             int diffRow = (selectedPiece!.row - row).abs();
             int diffCol = (selectedPiece!.col - col).abs();
-            if (diffRow > diffCol) {
-                
-            } else {
-
+//             print(diffCol);
+//             print(diffRow);
+            if (diffCol == 0) {
+                if (selectedPiece!.row > row) {
+                    bool canMove = true;
+                    for (int i = row+1; i < selectedPiece!.row; i++) {
+                         if (gridState[i][col].pieceType != PieceType.empty || gridState[i][col].backgroundColor == Colors.blue) {
+                            canMove = false;
+                            break;
+                         }
+                    }
+                    if (!canMove && gridState[row][col].pieceType != PieceType.empty && gridState[row][col].pieceColor != selectedPiece!.color) {
+                          return true;
+                      }
+                    return canMove;
+                } else {
+                     bool canMove = true;
+                    for (int i = selectedPiece!.row+1; i < row; i++) {
+                        if (gridState[i][col].pieceType != PieceType.empty || gridState[i][col].backgroundColor == Colors.blue) {
+                              canMove = false;
+                             break;
+                         }
+                    }
+                    if (!canMove && gridState[row][col].pieceType != PieceType.empty && gridState[row][col].pieceColor != selectedPiece!.color) {
+                        return true;
+                    }
+                    return canMove;
+                }
+            } else if (diffRow == 0) {
+                if (selectedPiece!.col > col) {
+                    bool canMove = true;
+                    for (int i = col+1; i < selectedPiece!.col; i++) {
+                        if (gridState[row][i].pieceType != PieceType.empty || gridState[row][i].backgroundColor == Colors.blue) {
+                                                                                   canMove = false;
+                                                                                  break;
+                                                                              }
+                    }
+                    if (!canMove && gridState[row][col].pieceType != PieceType.empty && gridState[row][col].pieceColor != selectedPiece!.color) {
+                                            return true;
+                                        }
+                    return canMove;
+                } else {
+                    bool canMove = true;
+                    for (int i = selectedPiece!.col+1; i < col; i++) {
+                             if (gridState[row][i].pieceType != PieceType.empty || gridState[row][i].backgroundColor == Colors.blue) {
+                                                           canMove = false;
+                                                          break;
+                                                      }
+                       }
+                       if (!canMove && gridState[row][col].pieceType != PieceType.empty && gridState[row][col].pieceColor != selectedPiece!.color) {
+                                               return true;
+                                           }
+                       return canMove;
+                }
             }
           }
 
-        return;
+        return false;
       }
       if (selectedPiece!.typeValue <= 0) {
-        return; // Bombs and Flags can't be moved
+        return false; // Bombs and Flags can't be moved
       }
     } else {
       // In not-ready state, restrict movement within starting zone
@@ -270,27 +387,32 @@ class _GameGridState extends ConsumerState<GameGrid> {
       bool isRed = selectedPiece!.color == Colors.red;
       if ((isGreen && (row > 2 || selectedPiece!.row > 2)) ||
           (isRed && (row < 5 || selectedPiece!.row < 5))) {
-        return;
+        return false;
       }
     }
 
-    setState(() {
-      gridState[selectedPiece!.row][selectedPiece!.col] = Square(
-        backgroundColor:
-            gridState[selectedPiece!.row][selectedPiece!.col].backgroundColor,
-        pieceColor: Colors.transparent,
-        pieceType: PieceType.empty,
-        pieceTypeValue: -1,
-      );
-      selectedPiece!.move(row, col);
-      gridState[row][col] = Square(
-        backgroundColor: gridState[row][col].backgroundColor,
-        pieceColor: selectedPiece!.color,
-        pieceType: selectedPiece!.type,
-        pieceTypeValue: selectedPiece!.typeValue,
-      );
-      selectedPiece = null;
-    });
+    return true;
+  }
+
+  void movePiece(int row, int col) {
+    final gridState = ref.read(gridProvider);
+      setState(() {
+        gridState[selectedPiece!.row][selectedPiece!.col] = Square(
+          backgroundColor:
+              gridState[selectedPiece!.row][selectedPiece!.col].backgroundColor,
+          pieceColor: Colors.transparent,
+          pieceType: PieceType.empty,
+          pieceTypeValue: -1,
+        );
+        selectedPiece!.move(row, col);
+        gridState[row][col] = Square(
+          backgroundColor: gridState[row][col].backgroundColor,
+          pieceColor: selectedPiece!.color,
+          pieceType: selectedPiece!.type,
+          pieceTypeValue: selectedPiece!.typeValue,
+        );
+        selectedPiece = null;
+      });
   }
 
   @override
@@ -327,7 +449,7 @@ class _GameGridState extends ConsumerState<GameGrid> {
                           final square = gridState[rowIndex][colIndex];
 
                           if (square.pieceColor != Colors.transparent) {
-                            // 🚫 Don't allow selecting flags or bombs if in Ready mode
+
 
                             final piece = Piece(
                               rowIndex,
@@ -340,7 +462,8 @@ class _GameGridState extends ConsumerState<GameGrid> {
                             if (selectedPiece != null &&
                                 selectedPiece!.row == piece.row &&
                                 selectedPiece!.col == piece.col) {
-                              selectPiece(null);
+                                selectPiece(null);
+
                             } else {
                             if (isReady) {
 
@@ -361,7 +484,9 @@ class _GameGridState extends ConsumerState<GameGrid> {
 
                             }
                           } else if (selectedPiece != null) {
-                            movePiece(rowIndex, colIndex);
+                            if (canMovePiece(rowIndex, colIndex)) {
+                                movePiece(rowIndex, colIndex);
+                            }
                           }
                         },
                         isSelected: selectedPiece != null &&
@@ -451,11 +576,6 @@ final gridProvider = StateProvider<List<List<Square>>>((ref) {
 
 /*
 
-
-
-mke el scout konkret liqy kara gna u chen kara irar glxi trni scout axpery
-
-not readyi jamanak ham el irar tex poxven irar het
-
-kancay cuyc chtal amenaverjum
+itogum mnac irtual serverov kponely turnery gna request ani het ga
+u hetebavabr kancay cuyc chtal amenaverjum
 */
