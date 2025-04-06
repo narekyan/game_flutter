@@ -1,23 +1,17 @@
-import 'package:flutter_riverpod/flutter_riverpod.dart';
+// state.dart
 import 'package:flutter/material.dart';
-import 'piece.dart';
-import 'square.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'models.dart';
 
 final gridProvider = StateProvider<List<List<Square>>>((ref) {
-  // Initialize the grid with default background colors (gray) and no pieces
+  // Initialize the grid with default colors (gray)
   List<List<Square>> grid = List.generate(8, (rowIndex) {
     return List.generate(8, (colIndex) {
-      Color backgroundColor = Colors.grey; // Default square background color
-
       if ((rowIndex == 3 && colIndex == 2) || (rowIndex == 4 && colIndex == 2) ||
           (rowIndex == 3 && colIndex == 5) || (rowIndex == 4 && colIndex == 5)) {
-        backgroundColor = Colors.blue; // Blue background for specific squares
+        return Square(backgroundColor: Colors.blue, pieceColor: Colors.transparent);
       }
-
-      return Square(
-        backgroundColor: backgroundColor,
-        pieceColor: Colors.transparent, // Initially no pieces
-      );
+      return Square(backgroundColor: Colors.grey, pieceColor: Colors.transparent); // Default square color
     });
   });
 
@@ -51,17 +45,11 @@ final gridProvider = StateProvider<List<List<Square>>>((ref) {
 
   // Place the green and red pieces on the grid
   for (var piece in greenPieces) {
-    grid[piece.row][piece.col] = Square(
-      backgroundColor: grid[piece.row][piece.col].backgroundColor,
-      pieceColor: piece.color,
-    );
+    grid[piece.row][piece.col] = Square(backgroundColor: Colors.grey, pieceColor: piece.color);
   }
 
   for (var piece in redPieces) {
-    grid[piece.row][piece.col] = Square(
-      backgroundColor: grid[piece.row][piece.col].backgroundColor,
-      pieceColor: piece.color,
-    );
+    grid[piece.row][piece.col] = Square(backgroundColor: Colors.grey, pieceColor: piece.color);
   }
 
   // Return the grid with all pieces placed
