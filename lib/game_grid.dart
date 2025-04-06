@@ -1,12 +1,23 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+enum PieceType {
+  empty,
+  flag, // ⚑ Flag
+  bomb, // 💣 Bomb
+  spy, // 🕵 Spy
+  scout, // 🥾 Scout
+  miner, // 🛠 Miner
+  soldier, // 🪖 Soldier
+  major, // 👨🏼‍✈️ Major
+}
+
 class Piece {
   int row;
   int col;
   final Color color;
-  final String type;  // Type of piece (Flag, Bomb, Spy, etc.)
-  final int typeValue;  // Value associated with the piece type
+  final PieceType type; // Type of piece (Flag, Bomb, Spy, etc.)
+  final int typeValue; // Value associated with the piece type
 
   Piece(this.row, this.col, this.color, this.type, this.typeValue);
 
@@ -20,7 +31,7 @@ class Piece {
 class Square {
   final Color backgroundColor;
   final Color pieceColor;
-  final String pieceType;
+  final PieceType pieceType;
   final int pieceTypeValue;
 
   Square({
@@ -35,7 +46,7 @@ class PieceWidget extends StatelessWidget {
   final Color color;
   final bool isSelected;
   final Function() onTap;
-  final String type;
+  final PieceType type;
   final int typeValue;
 
   const PieceWidget({
@@ -47,6 +58,27 @@ class PieceWidget extends StatelessWidget {
     required this.typeValue,
   }) : super(key: key);
 
+  String getPieceText(PieceType pieceType) {
+    switch (pieceType) {
+      case PieceType.flag:
+        return '⚑\nFlag';
+      case PieceType.bomb:
+        return '💣\nBomb';
+      case PieceType.spy:
+        return '🕵\nSpy';
+      case PieceType.scout:
+        return '🥾\nScout';
+      case PieceType.miner:
+        return '🛠\nMiner';
+      case PieceType.soldier:
+        return '🪖\nSoldier';
+      case PieceType.major:
+        return '👨🏼‍✈️\nMajor';
+      default:
+        return ''; // Return empty string for unknown piece type
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
@@ -57,9 +89,8 @@ class PieceWidget extends StatelessWidget {
         decoration: BoxDecoration(
           color: color,
           borderRadius: BorderRadius.circular(8.0),
-          border: isSelected
-              ? Border.all(color: Colors.white, width: 3.0)
-              : null,
+          border:
+              isSelected ? Border.all(color: Colors.white, width: 2.0) : null,
         ),
         child: Center(
           child: typeValue != -1 && typeValue != 0
@@ -67,7 +98,7 @@ class PieceWidget extends StatelessWidget {
                   TextSpan(
                     children: [
                       TextSpan(
-                        text: '$type\n',
+                        text: '${getPieceText(type)}\n',
                         style: TextStyle(fontSize: 12, color: Colors.white),
                       ),
                       TextSpan(
@@ -79,7 +110,7 @@ class PieceWidget extends StatelessWidget {
                   textAlign: TextAlign.center,
                 )
               : Text(
-                  type,
+                  getPieceText(type),
                   textAlign: TextAlign.center,
                   style: TextStyle(fontSize: 12, color: Colors.white),
                 ),
@@ -139,6 +170,7 @@ class GameGrid extends ConsumerStatefulWidget {
 class _GameGridState extends ConsumerState<GameGrid> {
   Piece? selectedPiece;
   Piece? previousPiece;
+  bool isReady = false;
 
   void selectPiece(Piece? piece) {
     setState(() {
@@ -152,22 +184,60 @@ class _GameGridState extends ConsumerState<GameGrid> {
     });
   }
 
+  void calculate(Piece selected, Piece piece) {
+    if (piece.typeValue == -1 && piece.type == PieceType.flag) {
+      print("win");
+    } else if (piece.typeValue == 0) {
+      print("bomb");
+      //selected remove
+    } else if (piece.typeValue == 5 && selected.type == PieceType.spy) {
+      print("spy");
+      //piece removed
+    } else if (selected.typeValue == piece.typeValue) {
+      print("draw");
+      //both piece removed
+    } else if (selected.typeValue < piece.typeValue) {
+      print("lose selected");
+      //selected removed
+    } else if (selected.typeValue > piece.typeValue) {
+      print("lose piece");
+      //piece removed
+    } else {
+      print("bombom");
+    }
+  }
+
   void movePiece(int row, int col) {
     if (selectedPiece == null) return;
 
     final gridState = ref.read(gridProvider);
     if (gridState[row][col].backgroundColor == Colors.blue) return;
 
-    if ((selectedPiece!.row - row).abs() > 1 || (selectedPiece!.col - col).abs() > 1 ||
-        (selectedPiece!.row != row && selectedPiece!.col != col)) {
-      return;
+    if (isReady) {
+      if (((selectedPiece!.row - row).abs() > 1 ||
+          (selectedPiece!.col - col).abs() > 1 ||
+          (selectedPiece!.row != row && selectedPiece!.col != col))) {
+        return;
+      }
+      if (selectedPiece!.typeValue <= 0) {
+        return; // Bombs and Flags can't be moved
+      }
+    } else {
+      // In not-ready state, restrict movement within starting zone
+      bool isGreen = selectedPiece!.color == Colors.green;
+      bool isRed = selectedPiece!.color == Colors.red;
+      if ((isGreen && (row > 2 || selectedPiece!.row > 2)) ||
+          (isRed && (row < 5 || selectedPiece!.row < 5))) {
+        return;
+      }
     }
 
     setState(() {
       gridState[selectedPiece!.row][selectedPiece!.col] = Square(
-        backgroundColor: gridState[selectedPiece!.row][selectedPiece!.col].backgroundColor,
+        backgroundColor:
+            gridState[selectedPiece!.row][selectedPiece!.col].backgroundColor,
         pieceColor: Colors.transparent,
-        pieceType: "",
+        pieceType: PieceType.empty,
         pieceTypeValue: -1,
       );
       selectedPiece!.move(row, col);
@@ -188,43 +258,71 @@ class _GameGridState extends ConsumerState<GameGrid> {
     return Scaffold(
       backgroundColor: Colors.white,
       body: Center(
-        child: Container(
-          padding: const EdgeInsets.all(8.0),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: List.generate(8, (rowIndex) {
-              return Row(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            ElevatedButton(
+              onPressed: () {
+                setState(() {
+                  isReady = !isReady;
+                });
+              },
+              child:
+                  Text(isReady ? 'Ready (🔒 Locked)' : 'Not Ready (✏️ Setup)'),
+            ),
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.all(8.0),
+              child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
-                children: List.generate(8, (colIndex) {
-                  return SquareWidget(
-                    square: gridState[rowIndex][colIndex],
-                    onPieceTap: () {
-                      if (gridState[rowIndex][colIndex].pieceColor != Colors.transparent) {
-                        final piece = Piece(
-                          rowIndex,
-                          colIndex,
-                          gridState[rowIndex][colIndex].pieceColor,
-                          gridState[rowIndex][colIndex].pieceType,
-                          gridState[rowIndex][colIndex].pieceTypeValue,
-                        );
+                children: List.generate(8, (rowIndex) {
+                  return Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: List.generate(8, (colIndex) {
+                      return SquareWidget(
+                        square: gridState[rowIndex][colIndex],
+                        onPieceTap: () {
+                          final square = gridState[rowIndex][colIndex];
 
-                        if (selectedPiece != null && (selectedPiece!.row == piece.row && selectedPiece!.col == piece.col)) {
-                          selectPiece(null);
-                        } else {
-                          selectPiece(piece);
-                        }
-                      } else if (selectedPiece != null) {
-                        movePiece(rowIndex, colIndex);
-                      }
-                    },
-                    isSelected: selectedPiece != null &&
-                        selectedPiece!.row == rowIndex &&
-                        selectedPiece!.col == colIndex,
+                          if (square.pieceColor != Colors.transparent) {
+                            // 🚫 Don't allow selecting flags or bombs if in Ready mode
+
+                            final piece = Piece(
+                              rowIndex,
+                              colIndex,
+                              square.pieceColor,
+                              square.pieceType,
+                              square.pieceTypeValue,
+                            );
+
+                            if (selectedPiece != null &&
+                                selectedPiece!.row == piece.row &&
+                                selectedPiece!.col == piece.col) {
+                              selectPiece(null);
+                            } else {
+                              if (isReady &&
+                                  (square.pieceType == PieceType.empty ||
+                                      square.pieceType == PieceType.flag ||
+                                      square.pieceType == PieceType.bomb)) {
+                                return;
+                              }
+
+                              selectPiece(piece);
+                            }
+                          } else if (selectedPiece != null) {
+                            movePiece(rowIndex, colIndex);
+                          }
+                        },
+                        isSelected: selectedPiece != null &&
+                            selectedPiece!.row == rowIndex &&
+                            selectedPiece!.col == colIndex,
+                      );
+                    }),
                   );
                 }),
-              );
-            }),
-          ),
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -234,45 +332,50 @@ class _GameGridState extends ConsumerState<GameGrid> {
 final gridProvider = StateProvider<List<List<Square>>>((ref) {
   List<List<Square>> grid = List.generate(8, (rowIndex) {
     return List.generate(8, (colIndex) {
-      if ((rowIndex == 3 && colIndex == 2) || (rowIndex == 4 && colIndex == 2) ||
-          (rowIndex == 3 && colIndex == 5) || (rowIndex == 4 && colIndex == 5)) {
-        return Square(backgroundColor: Colors.blue, pieceColor: Colors.transparent, pieceType: "", pieceTypeValue: -1);
+      if ((rowIndex == 3 && colIndex == 2) ||
+          (rowIndex == 4 && colIndex == 2) ||
+          (rowIndex == 3 && colIndex == 5) ||
+          (rowIndex == 4 && colIndex == 5)) {
+        return Square(
+            backgroundColor: Colors.blue,
+            pieceColor: Colors.transparent,
+            pieceType: PieceType.empty,
+            pieceTypeValue: -1);
       }
       return Square(
         backgroundColor: Colors.grey,
         pieceColor: Colors.transparent,
-        pieceType: "",
+        pieceType: PieceType.empty,
         pieceTypeValue: -1,
       );
     });
   });
 
   List<Piece> greenPieces = [
-    Piece(0, 2, Colors.green, '⚑ Flag', -1),
-    Piece(0, 3, Colors.green, '💣Bomb', 0),
-    Piece(0, 4, Colors.green, '💣Bomb', 0),
-    Piece(0, 5, Colors.green, '🕵Spy', 1),
-    Piece(1, 2, Colors.green, '🥾Scout', 2),
-    Piece(1, 3, Colors.green, '🥾Scout', 2),
-    Piece(1, 4, Colors.green, '🛠Miner', 3),
-    Piece(1, 5, Colors.green, '🛠Miner', 3),
-    Piece(2, 3, Colors.green, '🪖Soldier', 4),
-    Piece(2, 4, Colors.green, '👨🏼‍✈️Major', 5),
+    Piece(0, 2, Colors.green, PieceType.flag, -1),
+    Piece(0, 3, Colors.green, PieceType.bomb, 0),
+    Piece(0, 4, Colors.green, PieceType.bomb, 0),
+    Piece(0, 5, Colors.green, PieceType.spy, 1),
+    Piece(1, 2, Colors.green, PieceType.scout, 2),
+    Piece(1, 3, Colors.green, PieceType.scout, 2),
+    Piece(1, 4, Colors.green, PieceType.miner, 3),
+    Piece(1, 5, Colors.green, PieceType.miner, 3),
+    Piece(2, 3, Colors.green, PieceType.soldier, 4),
+    Piece(2, 4, Colors.green, PieceType.major, 5),
   ];
 
   List<Piece> redPieces = [
-    Piece(6, 2, Colors.red, '⚑ Flag', -1),
-    Piece(5, 3, Colors.red, '💣Bomb', 0),
-    Piece(5, 4, Colors.red, '💣Bomb', 0),
-    Piece(6, 3, Colors.red, '🕵Spy', 1),
-    Piece(6, 4, Colors.red, '🥾Scout', 2),
-    Piece(6, 5, Colors.red, '🥾Scout', 2),
-    Piece(7, 2, Colors.red, '🛠Miner', 3),
-    Piece(7, 3, Colors.red, '🛠Miner', 3),
-    Piece(7, 4, Colors.red, '🪖Soldier', 4),
-    Piece(7, 5, Colors.red, '👨🏼‍✈️Major', 5),
+    Piece(6, 2, Colors.red, PieceType.flag, -1),
+    Piece(5, 3, Colors.red, PieceType.bomb, 0),
+    Piece(5, 4, Colors.red, PieceType.bomb, 0),
+    Piece(6, 3, Colors.red, PieceType.spy, 1),
+    Piece(6, 4, Colors.red, PieceType.scout, 2),
+    Piece(6, 5, Colors.red, PieceType.scout, 2),
+    Piece(7, 2, Colors.red, PieceType.miner, 3),
+    Piece(7, 3, Colors.red, PieceType.miner, 3),
+    Piece(7, 4, Colors.red, PieceType.soldier, 4),
+    Piece(7, 5, Colors.red, PieceType.major, 5),
   ];
-
 
   for (var piece in greenPieces) {
     grid[piece.row][piece.col] = Square(
@@ -294,3 +397,13 @@ final gridProvider = StateProvider<List<List<Square>>>((ref) {
 
   return grid;
 });
+
+/*
+
+irar het hpumy u logikn , -1, 0, u tveru mahamtyan, mek el 1 u 5
+
+mke el scout konkret liqy kara gna u chen kara irar glxi trni scout axpery
+not readyi jamanak ham el irar tex poxven irar het
+
+kancay cuyc chtal amenaverjum
+*/
