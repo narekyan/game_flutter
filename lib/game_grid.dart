@@ -184,27 +184,55 @@ class _GameGridState extends ConsumerState<GameGrid> {
     });
   }
 
-  void calculate(Piece selected, Piece piece) {
+  void calculate(Piece selected, Piece piece, int row, int col) {
+    final grid = ref.read(gridProvider.notifier);
+    if (((selectedPiece!.row - row).abs() > 1 ||
+            (selectedPiece!.col - col).abs() > 1 ||
+            (selectedPiece!.row != row && selectedPiece!.col != col))) {
+          return;
+        }
+
+        List<List<Square>> currentGrid = [...ref.read(gridProvider)];
+         void removeAt(int r, int c) {
+            currentGrid[r][c] = Square(
+              backgroundColor: currentGrid[r][c].backgroundColor,
+              pieceColor: Colors.transparent,
+              pieceType: PieceType.empty,
+              pieceTypeValue: -1,
+            );
+          }
+
     if (piece.typeValue == -1 && piece.type == PieceType.flag) {
       print("win");
     } else if (piece.typeValue == 0) {
       print("bomb");
-      //selected remove
+          removeAt(selected.row, selected.col);
     } else if (piece.typeValue == 5 && selected.type == PieceType.spy) {
-      print("spy");
-      //piece removed
+      print("spy"); //
+      removeAt(row, col);
+
+
+      movePiece(row, col);
     } else if (selected.typeValue == piece.typeValue) {
       print("draw");
-      //both piece removed
+      removeAt(row, col);
+          removeAt(selected.row, selected.col);
     } else if (selected.typeValue < piece.typeValue) {
       print("lose selected");
-      //selected removed
+      removeAt(selected.row, selected.col);
     } else if (selected.typeValue > piece.typeValue) {
-      print("lose piece");
-      //piece removed
+      print("lose piece"); //
+      removeAt(row, col);
+
+       movePiece(row, col);
     } else {
       print("bombom");
     }
+
+//     setState(() {
+        grid.state = currentGrid;
+        selectedPiece = null;
+//       }
   }
 
   void movePiece(int row, int col) {
@@ -214,9 +242,23 @@ class _GameGridState extends ConsumerState<GameGrid> {
     if (gridState[row][col].backgroundColor == Colors.blue) return;
 
     if (isReady) {
+
+
+
       if (((selectedPiece!.row - row).abs() > 1 ||
           (selectedPiece!.col - col).abs() > 1 ||
           (selectedPiece!.row != row && selectedPiece!.col != col))) {
+
+          if(selectedPiece!.typeValue == PieceType.scout) {
+            int diffRow = (selectedPiece!.row - row).abs();
+            int diffCol = (selectedPiece!.col - col).abs();
+            if (diffRow > diffCol) {
+                
+            } else {
+
+            }
+          }
+
         return;
       }
       if (selectedPiece!.typeValue <= 0) {
@@ -300,14 +342,23 @@ class _GameGridState extends ConsumerState<GameGrid> {
                                 selectedPiece!.col == piece.col) {
                               selectPiece(null);
                             } else {
-                              if (isReady &&
-                                  (square.pieceType == PieceType.empty ||
-                                      square.pieceType == PieceType.flag ||
-                                      square.pieceType == PieceType.bomb)) {
-                                return;
-                              }
+                            if (isReady) {
 
-                              selectPiece(piece);
+                                if (selectedPiece != null && selectedPiece!.color != piece.color) {
+                                    calculate(selectedPiece!, piece, rowIndex, colIndex);
+                                } else {
+                                    if ((square.pieceType == PieceType.empty || square.pieceType == PieceType.flag || square.pieceType == PieceType.bomb)) {
+                                            return;
+                                    }
+                                    selectPiece(piece);
+                                }
+
+                            } else {
+                                selectPiece(piece);
+                            }
+
+
+
                             }
                           } else if (selectedPiece != null) {
                             movePiece(rowIndex, colIndex);
@@ -400,9 +451,10 @@ final gridProvider = StateProvider<List<List<Square>>>((ref) {
 
 /*
 
-irar het hpumy u logikn , -1, 0, u tveru mahamtyan, mek el 1 u 5
+
 
 mke el scout konkret liqy kara gna u chen kara irar glxi trni scout axpery
+
 not readyi jamanak ham el irar tex poxven irar het
 
 kancay cuyc chtal amenaverjum
