@@ -1,28 +1,23 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'game_grid.dart';
 
 void main() {
-  runApp(MyGameApp());
+  runApp(const ProviderScope(child: MyApp()));
 }
 
-class MyGameApp extends StatelessWidget {
+class MyApp extends StatelessWidget {
+  const MyApp({Key? key}) : super(key: key);
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'My Web Game',
-      debugShowCheckedModeBanner: false,
-      home: GameScreen(),
-    );
-  }
-}
-
-class GameScreen extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.yellow,
-      body: Center(
-        child: Text('Game will go here'),
+      title: 'Stratego',
+      theme: ThemeData(
+        primarySwatch: Colors.blue,
+        visualDensity: VisualDensity.adaptivePlatformDensity,
       ),
+      home: const GameGrid(),
     );
   }
 }
