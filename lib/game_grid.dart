@@ -11,7 +11,7 @@ class GameGrid extends ConsumerWidget {
     final gridState = ref.watch(gridProvider);
 
     return Scaffold(
-      backgroundColor: Colors.white, // White background for the whole screen
+      backgroundColor: Colors.white,  // White background for the whole screen
       body: Center(
         child: Container(
           padding: const EdgeInsets.all(8.0),  // Optional padding for spacing around the grid
@@ -22,9 +22,7 @@ class GameGrid extends ConsumerWidget {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: List.generate(8, (colIndex) {
                   return SquareWidget(
-                    row: rowIndex,
-                    col: colIndex,
-                    color: gridState[rowIndex][colIndex],
+                    square: gridState[rowIndex][colIndex],  // Pass the square to the widget
                   );
                 }),
               );

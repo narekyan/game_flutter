@@ -1,16 +1,11 @@
 import 'package:flutter/material.dart';
+import 'piece_widget.dart'; // Import the PieceWidget
+import 'square.dart';
 
 class SquareWidget extends StatelessWidget {
-  final int row;
-  final int col;
-  final Color color;
+  final Square square;
 
-  const SquareWidget({
-    Key? key,
-    required this.row,
-    required this.col,
-    required this.color,
-  }) : super(key: key);
+  const SquareWidget({Key? key, required this.square}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -19,12 +14,17 @@ class SquareWidget extends StatelessWidget {
       height: 80.0,
       margin: const EdgeInsets.all(1.0),
       decoration: BoxDecoration(
-          color: color,  // Background color of the square
-          border: Border.all(
-            color: Colors.black,  // Black border color
-            width: 1.0,  // Border width (adjust as needed)
-          ),
+        color: square.backgroundColor,  // Background color of the square
+        border: Border.all(
+          color: Colors.black,  // Black border color
+          width: 1.0,  // Border width
         ),
+      ),
+      child: (square.pieceColor != Colors.transparent)
+          ? Center(
+              child: PieceWidget(color: square.pieceColor),  // Display the piece inside the square
+            )
+          : Container(),
     );
   }
 }
