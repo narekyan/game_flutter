@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'dart:html' as html;
 enum PieceType {
   empty,
+  opponent,
   flag, // ⚑ Flag
   bomb, // 💣 Bomb
   spy, // 🕵 Spy
@@ -74,6 +75,8 @@ class PieceWidget extends StatelessWidget {
         return '🪖\nSoldier';
       case PieceType.major:
         return '👨🏼‍✈️\nMajor';
+      case PieceType.opponent:
+        return '?';
       default:
         return ''; // Return empty string for unknown piece type
     }
@@ -93,7 +96,7 @@ class PieceWidget extends StatelessWidget {
               isSelected ? Border.all(color: Colors.white, width: 2.0) : null,
         ),
         child: Center(
-          child: typeValue != -1 && typeValue != 0
+          child: typeValue != -1 && typeValue != 0 && color != Colors.green
               ? Text.rich(
                   TextSpan(
                     children: [
@@ -124,12 +127,14 @@ class SquareWidget extends StatelessWidget {
   final Square square;
   final VoidCallback onPieceTap;
   final bool isSelected;
+  final bool isReady;
 
   const SquareWidget({
     Key? key,
     required this.square,
     required this.onPieceTap,
     required this.isSelected,
+    required this.isReady,
   }) : super(key: key);
 
   @override
@@ -141,7 +146,7 @@ class SquareWidget extends StatelessWidget {
         height: 80.0,
         margin: const EdgeInsets.all(1.0),
         decoration: BoxDecoration(
-          color: square.backgroundColor,
+          color: square.backgroundColor.withOpacity(isReady ? 1.0 : 0.5),
           border: Border.all(color: Colors.black, width: 1.0),
         ),
         child: (square.pieceColor != Colors.transparent)
@@ -492,6 +497,7 @@ class _GameGridState extends ConsumerState<GameGrid> {
                         isSelected: selectedPiece != null &&
                             selectedPiece!.row == rowIndex &&
                             selectedPiece!.col == colIndex,
+                        isReady: rowIndex > 4 || isReady,
                       );
                     }),
                   );
@@ -528,39 +534,39 @@ final gridProvider = StateProvider<List<List<Square>>>((ref) {
   });
 
   List<Piece> greenPieces = [
-    Piece(0, 2, Colors.green, PieceType.flag, -1),
-    Piece(0, 3, Colors.green, PieceType.bomb, 0),
-    Piece(0, 4, Colors.green, PieceType.bomb, 0),
-    Piece(0, 5, Colors.green, PieceType.spy, 1),
-    Piece(1, 2, Colors.green, PieceType.scout, 2),
-    Piece(1, 3, Colors.green, PieceType.scout, 2),
-    Piece(1, 4, Colors.green, PieceType.miner, 3),
-    Piece(1, 5, Colors.green, PieceType.miner, 3),
-    Piece(2, 3, Colors.green, PieceType.soldier, 4),
-    Piece(2, 4, Colors.green, PieceType.major, 5),
+    Piece(0, 2, Colors.green, PieceType.opponent, 0),
+    Piece(0, 3, Colors.green, PieceType.opponent, -1),
+    Piece(0, 4, Colors.green, PieceType.opponent, 0),
+    Piece(0, 5, Colors.green, PieceType.opponent, 1),
+    Piece(1, 2, Colors.green, PieceType.opponent, 2),
+    Piece(1, 3, Colors.green, PieceType.opponent, 2),
+    Piece(1, 4, Colors.green, PieceType.opponent, 3),
+    Piece(1, 5, Colors.green, PieceType.opponent, 3),
+    Piece(2, 3, Colors.green, PieceType.opponent, 4),
+    Piece(2, 4, Colors.green, PieceType.opponent, 5),
   ];
 
   List<Piece> redPieces = [
-    Piece(6, 2, Colors.red, PieceType.flag, -1),
-    Piece(5, 3, Colors.red, PieceType.bomb, 0),
-    Piece(5, 4, Colors.red, PieceType.bomb, 0),
+    Piece(6, 2, Colors.red, PieceType.soldier, 4),
+    Piece(5, 3, Colors.red, PieceType.miner, 3),
+    Piece(5, 4, Colors.red, PieceType.major, 5),
     Piece(6, 3, Colors.red, PieceType.spy, 1),
     Piece(6, 4, Colors.red, PieceType.scout, 2),
     Piece(6, 5, Colors.red, PieceType.scout, 2),
     Piece(7, 2, Colors.red, PieceType.miner, 3),
-    Piece(7, 3, Colors.red, PieceType.miner, 3),
-    Piece(7, 4, Colors.red, PieceType.soldier, 4),
-    Piece(7, 5, Colors.red, PieceType.major, 5),
+    Piece(7, 3, Colors.red, PieceType.bomb, 0),
+    Piece(7, 4, Colors.red, PieceType.flag,-1),
+    Piece(7, 5, Colors.red, PieceType.bomb, 0),
   ];
 
-  for (var piece in greenPieces) {
-    grid[piece.row][piece.col] = Square(
-      backgroundColor: Colors.grey,
-      pieceColor: piece.color,
-      pieceType: piece.type,
-      pieceTypeValue: piece.typeValue,
-    );
-  }
+//   for (var piece in greenPieces) {
+//     grid[piece.row][piece.col] = Square(
+//       backgroundColor: Colors.grey,
+//       pieceColor: piece.color,
+//       pieceType: piece.type,
+//       pieceTypeValue: piece.typeValue,
+//     );
+//   }
 
   for (var piece in redPieces) {
     grid[piece.row][piece.col] = Square(
@@ -576,6 +582,9 @@ final gridProvider = StateProvider<List<List<Square>>>((ref) {
 
 /*
 
-itogum mnac irtual serverov kponely turnery gna request ani het ga
-u hetebavabr kancay cuyc chtal amenaverjum
+3 hat nuyyn uxutymab sharjum anely
+
+itogum mnac virtual serverov kponely turnery gna request ani het ga
+
+
 */
